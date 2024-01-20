@@ -36,7 +36,7 @@ router.get('/', (req, res, next) => {
 		const sortBy = queryParams['sortBy'] ? queryParams['sortBy'].split(',').map((item) => item.trim()) : [];
 		const orderBy = queryParams['orderBy'] ? queryParams['orderBy'].toLowerCase().trim() : 'asc';
 		/* sorting data by key & order */
-		let sortedContacts = savedContacts;
+		let sortedContacts = Object.values(savedContacts);
 		sortBy.map((item) => {
 			sortedContacts.sort(funcCompare(item, orderBy));
 		});
@@ -51,12 +51,12 @@ router.get('/', (req, res, next) => {
 router.post('/', (req, res, next) => {
 	try {
 		let newContacts = req.body;
-		let maxId = savedContacts.length;
-		/* check if any deplicate contacts present */
+		let maxId = Object.keys(savedContacts).length;
 		const duplicateContacts = [];
 		const uniuePhnoSet = new Set();
+		/* check if any deplicate contacts present */
 		newContacts = newContacts.filter((item) => {
-			if (uniuePhnoSet.has(item.phno)) {
+			if (uniuePhnoSet.has(item.phno) || item.phno in savedContacts) {
 				duplicateContacts.push(item);
 				return false;
 			} else {
@@ -64,18 +64,14 @@ router.post('/', (req, res, next) => {
 				return true;
 			}
 		});
-		savedContacts.map((item) => {
-			const idx = newContacts.findIndex((_item) => _item.phno === item.phno);
-			if (idx !== -1) duplicateContacts.push(newContacts.splice(idx, 1)[0]);
-		});
 		if (newContacts.length) {
 			newContacts.map((item) => {
 				item['id'] = maxId;
 				item['cdate'] = ctime();
-				savedContacts.push(item);
+				savedContacts[item.phno] = item;
 				maxId += 1;
 			});
-			fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
+			fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts));
 		}
 		res.status(200).json({ success: true, message: 'Contacts saved successfully!', data: { 'duplicates': duplicateContacts, 'added': newContacts } });
 	} catch (error) {
@@ -88,7 +84,7 @@ router.post('/', (req, res, next) => {
 router.get('/search', (req, res, next) => {
 	try {
 		const queryParams = req.query;
-		let searchResult = savedContacts;
+		let searchResult = Object.values(savedContacts);
 		/* search by fname */
 		if (queryParams?.fname) searchResult = searchResult.filter((item) => item.fname.toLowerCase() == queryParams.fname.toLowerCase() );
 		/* search by lname */
@@ -109,10 +105,10 @@ router.delete('/', (req, res, next) => {
 	try {
 		const phno = req.body?.phno;
 		if (phno) {
-			const idx = savedContacts.findIndex((item) => item.phno === phno);
-			if (idx !== -1) {
-				const deletedContact = savedContacts.splice(idx, 1);
-				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
+			if (phno in savedContacts) {
+				const deletedContact = savedContacts[phno];
+				delete savedContacts[phno];
+				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts));
 				res.status(200).json({ success: true, message: `Contact with phone no ${phno} deleted successfully!`, data: deletedContact });
 			} else {
 				res.status(404).json({ success: true, message: `No contacts found with the given phone no ${phno}!`, data: [] });
@@ -131,13 +127,12 @@ router.put('/', (req, res, next) => {
 	try {
 		const params = req.body;
 		if (params?.phno) {
-			const idx = savedContacts.findIndex((item) => item.phno === params.phno);
-			if (idx !== -1) {
-				if (params?.fname) savedContacts[idx]['fname'] = params.fname;
-				if (params?.lname) savedContacts[idx]['lname'] = params.lname;
-				if (params?.category) savedContacts[idx]['category'] = params.category;
-				savedContacts[idx]['udate'] = ctime();
-				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
+			if (params.phno in savedContacts) {
+				if (params?.fname) savedContacts[params.phno]['fname'] = params.fname;
+				if (params?.lname) savedContacts[params.phno]['lname'] = params.lname;
+				if (params?.category) savedContacts[params.phno]['category'] = params.category;
+				savedContacts[params.phno]['udate'] = ctime();
+				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts));
 				res.status(200).json({ success: true, message: `Contact with phone no ${params.phno} updated successfully!`, data: params });
 			} else {
 				res.status(404).json({ success: true, message: `No contacts found with the given phone no ${params.phno}!`, data: [] });
