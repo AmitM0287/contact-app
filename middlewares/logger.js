@@ -1,10 +1,16 @@
-const express = require('express');
+const fs = require('fs');
+const { ctime } = require('../utils/helper.js');
+const logDir = 'logs';
+const requestLogFile = 'logs/requestLogs.log';
 
-const logger = express()
-const reqlogs = require('../logs/requests.log');
+/* creating logs directory and requestLogs file if not exists */
+if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
+if (!fs.existsSync(requestLogFile)) fs.writeFileSync(requestLogFile, '');
 
-const logging = () => (req, res, next) => {
-    console.log(reqlogs);
-}
+/* func is used to log http request */
+const requestLogger = (req, res, next) => {
+    fs.appendFileSync(requestLogFile, `url: ${req.url}\t time: ${ctime()} \n`);
+    next();
+};
 
-module.exports = logger;
+module.exports = { requestLogger };
