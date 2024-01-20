@@ -50,16 +50,34 @@ router.get('/', (req, res, next) => {
 /* [POST] add new contacts */
 router.post('/', (req, res, next) => {
 	try {
-		const newContacts = req.body;
+		let newContacts = req.body;
 		let maxId = savedContacts.length;
-		newContacts.map((item) => {
-			item['id'] = maxId;
-			item['cdate'] = ctime();
-			savedContacts.push(item);
-			maxId += 1;
+		/* check if any deplicate contacts present */
+		const duplicateContacts = [];
+		const uniuePhnoSet = new Set();
+		newContacts = newContacts.filter((item) => {
+			if (uniuePhnoSet.has(item.phno)) {
+				duplicateContacts.push(item);
+				return false;
+			} else {
+				uniuePhnoSet.add(item.phno);
+				return true;
+			}
 		});
-		fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
-		res.status(200).json({ success: true, message: 'Contacts saved successfully!', data: newContacts });
+		savedContacts.map((item) => {
+			const idx = newContacts.findIndex((_item) => _item.phno === item.phno);
+			if (idx !== -1) duplicateContacts.push(newContacts.splice(idx, 1)[0]);
+		});
+		if (newContacts.length) {
+			newContacts.map((item) => {
+				item['id'] = maxId;
+				item['cdate'] = ctime();
+				savedContacts.push(item);
+				maxId += 1;
+			});
+			fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
+		}
+		res.status(200).json({ success: true, message: 'Contacts saved successfully!', data: { 'duplicates': duplicateContacts, 'added': newContacts } });
 	} catch (error) {
 		console.log(error);
 		res.status(400).json({ success: false, message: 'Something went wrong! Please try after sometime!', data: [] });
@@ -80,6 +98,28 @@ router.get('/search', (req, res, next) => {
 		/* search by phno */
 		if (queryParams?.phno) searchResult = searchResult.filter((item) => item.phno.toLowerCase() == queryParams.phno.toLowerCase() );
 		res.status(200).json({ success: true, message: 'Searched in saved contacts successfully!', data: searchResult });
+	} catch (error) {
+		console.log(error);
+		res.status(400).json({ success: false, message: 'Something went wrong! Please try after sometime!', data: [] });
+	}
+});
+
+/* [DELETE] delete a contact */
+router.delete('/', (req, res, next) => {
+	try {
+		const phno = req.body?.phno;
+		if (phno) {
+			const idx = savedContacts.findIndex((item) => item.phno === phno);
+			if (idx !== -1) {
+				const deletedContact = savedContacts.splice(idx, 1);
+				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
+				res.status(200).json({ success: true, message: `Contact with phone no ${phno} deleted successfully!`, data: deletedContact });
+			} else {
+				res.status(404).json({ success: true, message: `No contacts found with the phone no ${phno}!`, data: [] });
+			}
+		} else {
+			res.status(400).json({ success: false, message: 'Please provide the phone number to delete a contact!', data: [] });
+		}
 	} catch (error) {
 		console.log(error);
 		res.status(400).json({ success: false, message: 'Something went wrong! Please try after sometime!', data: [] });
