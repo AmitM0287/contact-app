@@ -115,10 +115,35 @@ router.delete('/', (req, res, next) => {
 				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
 				res.status(200).json({ success: true, message: `Contact with phone no ${phno} deleted successfully!`, data: deletedContact });
 			} else {
-				res.status(404).json({ success: true, message: `No contacts found with the phone no ${phno}!`, data: [] });
+				res.status(404).json({ success: true, message: `No contacts found with the given phone no ${phno}!`, data: [] });
 			}
 		} else {
 			res.status(400).json({ success: false, message: 'Please provide the phone number to delete a contact!', data: [] });
+		}
+	} catch (error) {
+		console.log(error);
+		res.status(400).json({ success: false, message: 'Something went wrong! Please try after sometime!', data: [] });
+	}
+});
+
+/* [PUT] update contact details */
+router.put('/', (req, res, next) => {
+	try {
+		const params = req.body;
+		if (params?.phno) {
+			const idx = savedContacts.findIndex((item) => item.phno === params.phno);
+			if (idx !== -1) {
+				if (params?.fname) savedContacts[idx]['fname'] = params.fname;
+				if (params?.lname) savedContacts[idx]['lname'] = params.lname;
+				if (params?.category) savedContacts[idx]['category'] = params.category;
+				savedContacts[idx]['udate'] = ctime();
+				fs.writeFileSync('data/contacts.json', JSON.stringify(savedContacts, null, 4));
+				res.status(200).json({ success: true, message: `Contact with phone no ${params.phno} updated successfully!`, data: params });
+			} else {
+				res.status(404).json({ success: true, message: `No contacts found with the given phone no ${params.phno}!`, data: [] });
+			}
+		} else {
+			res.status(404).json({ success: true, message: `Please provide the phone no!`, data: [] });
 		}
 	} catch (error) {
 		console.log(error);
