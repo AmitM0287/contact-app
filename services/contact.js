@@ -3,9 +3,10 @@ const router = express.Router();
 const fs = require('fs');
 const savedContacts = require('../data/contacts.json');
 
+/* function used to get the current time */
 const ctime = () => {
 	const date = new Date();
-	const fdate = date.toLocaleDateString('en-GB', {
+	const ftime = date.toLocaleDateString('en-GB', {
 		day: '2-digit',
 		month: 'short',
 		year: 'numeric',
@@ -14,13 +15,32 @@ const ctime = () => {
 		second: '2-digit',
 		hour12: true
 	});
-	return fdate;
+	return ftime;
 }
 
-/* [GET] get contacts list */
+/* sort by key & order, default sorting order is asc */
+const funcCompare = (key, order) => (a, b) => {
+	let comparison = 0;
+    if (a[key] < b[key]) {
+        comparison = -1;
+    } else if (a[key] > b[key]) {
+        comparison = 1;
+    }
+    return order === 'desc' ? comparison * -1 : comparison;
+}
+
+/* [GET] fetch all saved contacts */
 router.get('/', (req, res, next) => {
 	try {
-		res.status(200).json({ success: true, message: 'All saved contacts retrieved successfully!', data: savedContacts });
+		const queryParams = req.query;
+		const sortBy = queryParams['sortBy'] ? queryParams['sortBy'].split(',').map((item) => item.trim()) : [];
+		const orderBy = queryParams['orderBy'] ? queryParams['orderBy'].toLowerCase().trim() : 'asc';
+		/* sorting data by key & order */
+		let sortedContacts = savedContacts;
+		sortBy.map((item) => {
+			sortedContacts.sort(funcCompare(item, orderBy));
+		});
+		res.status(200).json({ success: true, message: 'All saved contacts retrieved successfully!', data: sortedContacts });
 	} catch (error) {
 		console.log(error);
 		res.status(400).json({ success: false, message: 'Something went wrong! Please try after sometime!', data: [] });
@@ -49,16 +69,16 @@ router.post('/', (req, res, next) => {
 /* [GET] search contacts */
 router.get('/search', (req, res, next) => {
 	try {
-		const searchKeyObj = req.query;
+		const queryParams = req.query;
 		let searchResult = savedContacts;
 		/* search by fname */
-		if (searchKeyObj?.fname) searchResult = searchResult.filter((item) => item.fname.toLowerCase() == searchKeyObj.fname.toLowerCase() );
+		if (queryParams?.fname) searchResult = searchResult.filter((item) => item.fname.toLowerCase() == queryParams.fname.toLowerCase() );
 		/* search by lname */
-		if (searchKeyObj?.lname) searchResult = searchResult.filter((item) => item.lname.toLowerCase() == searchKeyObj.lname.toLowerCase() );
+		if (queryParams?.lname) searchResult = searchResult.filter((item) => item.lname.toLowerCase() == queryParams.lname.toLowerCase() );
 		/* search by category */
-		if (searchKeyObj?.category) searchResult = searchResult.filter((item) => item.category.toLowerCase() == searchKeyObj.category.toLowerCase() );
+		if (queryParams?.category) searchResult = searchResult.filter((item) => item.category.toLowerCase() == queryParams.category.toLowerCase() );
 		/* search by phno */
-		if (searchKeyObj?.phno) searchResult = searchResult.filter((item) => item.phno.toLowerCase() == searchKeyObj.phno.toLowerCase() );
+		if (queryParams?.phno) searchResult = searchResult.filter((item) => item.phno.toLowerCase() == queryParams.phno.toLowerCase() );
 		res.status(200).json({ success: true, message: 'Searched in saved contacts successfully!', data: searchResult });
 	} catch (error) {
 		console.log(error);
